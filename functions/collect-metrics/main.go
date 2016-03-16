@@ -155,15 +155,15 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
 	data := []*cloudwatch.MetricDatum{}
 	data = append(data, r.Counts.asMetrics(nil)...)
 
-	for name, _ := range r.Queues {
-		data = append(data, r.Counts.asMetrics([]*cloudwatch.Dimension{
+	for name, c := range r.Queues {
+		data = append(data, c.asMetrics([]*cloudwatch.Dimension{
 			{Name: aws.String("Queue"), Value: aws.String(name)},
 		})...)
 	}
 
 	// write pipeline metrics, include project dimension for backwards compat
-	for name, _ := range r.Pipelines {
-		data = append(data, r.Counts.asMetrics([]*cloudwatch.Dimension{
+	for name, c := range r.Pipelines {
+		data = append(data, c.asMetrics([]*cloudwatch.Dimension{
 			{Name: aws.String("Project"), Value: aws.String(name)},
 			{Name: aws.String("Pipeline"), Value: aws.String(name)},
 		})...)
