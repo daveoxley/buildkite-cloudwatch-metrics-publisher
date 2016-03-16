@@ -24,10 +24,6 @@ import (
 // Buildkite > (Queue) > RunningJobsCount
 // Buildkite > (Queue) > ScheduledBuildsCount
 // Buildkite > (Queue) > ScheduledJobsCount
-// Buildkite > (Pipeline) > RunningBuildsCount
-// Buildkite > (Pipeline) > RunningJobsCount
-// Buildkite > (Pipeline) > ScheduledBuildsCount
-// Buildkite > (Pipeline) > ScheduledJobsCount
 
 func main() {
 	apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
@@ -54,18 +50,15 @@ func main() {
 
 		var res Result = Result{
 			Queues:    map[string]Counts{},
-			Pipelines: map[string]Counts{},
 		}
 
 		log.Printf("Aggregating results from %d builds", len(builds))
 		for _, build := range builds {
 			res.Counts = res.Counts.addBuild(build)
-			res.Pipelines[build.Pipeline.Name] = res.Pipelines[build.Pipeline.Name].addBuild(build)
 
 			var buildQueues = map[string]int{}
 			for _, job := range build.Jobs {
 				res.Counts = res.Counts.addJob(job)
-				res.Pipelines[build.Pipeline.Name] = res.Pipelines[build.Pipeline.Name].addJob(job)
 				res.Queues[job.Queue()] = res.Queues[job.Queue()].addJob(job)
 				buildQueues[job.Queue()]++
 			}
@@ -148,7 +141,7 @@ func (c Counts) asMetrics(dimensions []*cloudwatch.Dimension) []*cloudwatch.Metr
 
 type Result struct {
 	Counts
-	Queues, Pipelines map[string]Counts
+	Queues map[string]Counts
 }
 
 func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
@@ -158,14 +151,6 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
 	for name, c := range r.Queues {
 		data = append(data, c.asMetrics([]*cloudwatch.Dimension{
 			{Name: aws.String("Queue"), Value: aws.String(name)},
-		})...)
-	}
-
-	// write pipeline metrics, include project dimension for backwards compat
-	for name, c := range r.Pipelines {
-		data = append(data, c.asMetrics([]*cloudwatch.Dimension{
-			{Name: aws.String("Project"), Value: aws.String(name)},
-			{Name: aws.String("Pipeline"), Value: aws.String(name)},
 		})...)
 	}
 
