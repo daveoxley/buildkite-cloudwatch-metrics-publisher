@@ -42,30 +42,20 @@ func main() {
 			return nil, errors.New("No BuildkiteOrgSlug provided")
 		}
 
-		log.Printf("Querying buildkite for builds for org %s for past 5 mins", conf.BuildkiteOrgSlug)
-		builds, err := recentBuildkiteBuilds(conf.BuildkiteOrgSlug, conf.BuildkiteApiAccessToken)
-		if err != nil {
-			return nil, err
+		if conf.Queue == "" {
+			return nil, errors.New("No Queue provided")
 		}
 
-		var res Result = Result{
+		var res = &Result{
 			Queues:    map[string]Counts{},
 		}
 
-		log.Printf("Aggregating results from %d builds", len(builds))
-		for _, build := range builds {
-			res.Counts = res.Counts.addBuild(build)
+		if err := res.getBuildStats(conf, "running"); err != nil {
+			return nil, err
+		}
 
-			var buildQueues = map[string]int{}
-			for _, job := range build.Jobs {
-				res.Counts = res.Counts.addJob(job)
-				res.Queues[job.Queue()] = res.Queues[job.Queue()].addJob(job)
-				buildQueues[job.Queue()]++
-			}
-
-			for queue := range buildQueues {
-				res.Queues[queue] = res.Queues[queue].addBuild(build)
-			}
+		if err := res.getBuildStats(conf, "scheduled"); err != nil {
+			return nil, err
 		}
 
 		log.Printf("Extracting cloudwatch metrics from results")
@@ -73,7 +63,7 @@ func main() {
 
 		for _, chunk := range chunkMetricData(10, metrics) {
 			log.Printf("Submitting chunk of %d metrics to Cloudwatch", len(chunk))
-			if err = putMetricData(svc, chunk); err != nil {
+			if err := putMetricData(svc, chunk); err != nil {
 				return nil, err
 			}
 		}
@@ -83,7 +73,7 @@ func main() {
 }
 
 type Config struct {
-	BuildkiteOrgSlug, BuildkiteApiAccessToken string
+	BuildkiteOrgSlug, BuildkiteApiAccessToken, Queue string
 }
 
 type Counts struct {
@@ -157,11 +147,46 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
 	return data
 }
 
-func recentBuildkiteBuilds(orgSlug, apiKey string) ([]buildkite.Build, error) {
+func (res *Result) getBuildStats(conf Config, stateFilter string) (error) {
+	log.Printf("Querying buildkite for %s builds for org %s", stateFilter, conf.BuildkiteOrgSlug)
+	builds, err := buildkiteBuilds(conf.BuildkiteOrgSlug, conf.BuildkiteApiAccessToken, stateFilter)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Aggregating results from %d builds", len(builds))
+	for _, build := range builds {
+		res.Counts = res.Counts.addBuild(build)
+
+		var buildQueues = map[string]int{}
+		for _, job := range build.Jobs {
+			res.Counts = res.Counts.addJob(job)
+			queue := job.Queue()
+			if queue == "default" || queue == conf.Queue {
+				res.Queues[queue] = res.Queues[queue].addJob(job)
+				buildQueues[queue]++
+			}
+		}
+
+		for queue := range buildQueues {
+			res.Queues[queue] = res.Queues[queue].addBuild(build)
+		}
+	}
+
+	// Initialise both queues if they don't have any jobs
+	res.Queues["default"] = res.Queues["default"]
+	res.Queues[conf.Queue] = res.Queues[conf.Queue]
+
+	log.Printf("%+v\n", *res)
+
+	return nil
+}
+
+func buildkiteBuilds(orgSlug, apiKey, stateFilter string) ([]buildkite.Build, error) {
 	url := fmt.Sprintf(
-		"https://api.buildkite.com/v2/organizations/%s/builds?created_from=%s&page=%d",
+		"https://api.buildkite.com/v2/organizations/%s/builds?state=%s&page=%d&per_page=100",
 		orgSlug,
-		time.Now().UTC().Add(time.Minute*-5).Format("2006-01-02T15:04:05Z"),
+		stateFilter,
 		1,
 	)
 
