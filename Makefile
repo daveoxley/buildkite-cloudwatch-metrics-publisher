@@ -25,4 +25,5 @@ create-stack:build/cloudwatch-metrics-publisher.json
 	--template-body "file://${PWD}/build/cloudwatch-metrics-publisher.json" \
 	--capabilities CAPABILITY_IAM \
 	--parameters ParameterKey=BuildkiteApiAccessToken,ParameterValue=${BUILDKITE_API_ACCESS_TOKEN} \
-		ParameterKey=BuildkiteOrgSlug,ParameterValue=${BUILDKITE_ORG_SLUG}
+		ParameterKey=BuildkiteOrgSlug,ParameterValue=${BUILDKITE_ORG_SLUG} \
+                ParameterKey=Queue,ParameterValue=${QUEUE}

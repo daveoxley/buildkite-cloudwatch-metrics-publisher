@@ -9,6 +9,10 @@ Parameters:
     Description: Your Buildkite organization slug
     Type: String
 
+  Queue:
+    Description: The Build Queue to collect stats for
+    Type: String
+
 Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -60,7 +64,8 @@ Resources:
               FunctionName: '$(CollectMetrics)',
               Payload: JSON.stringify({
                 BuildkiteApiAccessToken: '$(BuildkiteApiAccessToken)',
-                BuildkiteOrgSlug: '$(BuildkiteOrgSlug)'
+                BuildkiteOrgSlug: '$(BuildkiteOrgSlug)',
+                Queue: '$(Queue)'
               }, null, 2)
             }, function(error, data) {
               if (error) {

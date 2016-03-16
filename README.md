@@ -6,7 +6,7 @@ Publish [Buildkite](https://buildkite.com/) job queue statistics to [AWS Cloudwa
 
 ## Installing
 
-The easiest way to install is to press the above button and then enter your org slug and your [Buildkite API Access Token](https://buildkite.com/user/api-access-tokens) with `read_projects` permissions created.
+The easiest way to install is to press the above button and then enter your org slug, your [Buildkite API Access Token](https://buildkite.com/user/api-access-tokens) with `read_builds` permissions created and the queue for which to collect metrics.
 
 Alternately, run via the command-line:
 
@@ -18,7 +18,8 @@ aws cloudformation create-stack \
 	--template-body "https://s3.amazonaws.com/buildkite-cloudwatch-metrics-publisher/cloudwatch-metrics-publisher.json" \
 	--capabilities CAPABILITY_IAM \
 	--parameters ParameterKey=BuildkiteApiAccessToken,ParameterValue=BUILDKITE_API_TOKEN_GOES_HERE \
-	ParameterKey=BuildkiteOrgSlug,ParameterValue=BUILDKITE_ORG_SLUG_GOES_HERE
+	ParameterKey=BuildkiteOrgSlug,ParameterValue=BUILDKITE_ORG_SLUG_GOES_HERE \
+        ParameterKey=Queue,ParameterValue=QUEUE_GOES_HERE
 ```
 
 After the stack is run you will have the following metrics populated in CloudWatch (updated every 5 minutes):
@@ -32,10 +33,6 @@ Buildkite > (Queue) > RunningBuildsCount
 Buildkite > (Queue) > RunningJobsCount
 Buildkite > (Queue) > ScheduledBuildsCount
 Buildkite > (Queue) > ScheduledJobsCount
-Buildkite > (Pipeline) > RunningBuildsCount
-Buildkite > (Pipeline) > RunningJobsCount
-Buildkite > (Pipeline) > ScheduledBuildsCount
-Buildkite > (Pipeline) > ScheduledJobsCount
 ```
 
 ## Developing
