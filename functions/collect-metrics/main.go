@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/apex/go-apex"
 	"github.com/aws/aws-sdk-go/aws"
